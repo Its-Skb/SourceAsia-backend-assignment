@@ -32,9 +32,16 @@ func main() {
 	// Optional large dataset seeding
 	// utils.SeedProducts(1000)
 
+	// Dynamic port support for deployment
+	port := os.Getenv("PORT")
+
+	if port == "" {
+		port = "8080"
+	}
+
 	// HTTP server configuration
 	server := &http.Server{
-		Addr:           ":8080",
+		Addr:           ":" + port,
 		Handler:        router,
 		ReadTimeout:    5 * time.Second,
 		WriteTimeout:   10 * time.Second,
@@ -44,7 +51,7 @@ func main() {
 
 	// Run server in goroutine
 	go func() {
-		log.Println("Server running on port 8080")
+		log.Printf("Server running on port %s", port)
 
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Server startup failed: %v", err)
