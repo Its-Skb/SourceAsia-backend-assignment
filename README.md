@@ -283,3 +283,352 @@ AI tools were used for:
 - API design suggestions
 - concurrency design review
 - README drafting assistance
+
+---
+
+# Part 2 - Product Catalog API
+
+This section implements a scalable in-memory product catalog system with optimized list and detail APIs.
+
+---
+
+# Product Architecture
+
+Each product contains:
+
+- core product metadata
+- image URLs
+- video URLs
+
+Media are stored as URL strings only.
+
+Example:
+
+```json
+{
+  "name": "Widget A",
+  "sku": "SKU-001",
+  "image_urls": [
+    "https://cdn.example.com/products/sku-001/img-1.jpg"
+  ],
+  "video_urls": [
+    "https://cdn.example.com/products/sku-001/demo.mp4"
+  ]
+}
+```
+
+---
+
+# Storage Design
+
+The implementation uses separate in-memory structures for optimized performance.
+
+## Product Metadata Store
+
+Stores lightweight product information:
+
+```go
+Products map[string]*Product
+```
+
+Contains:
+- id
+- name
+- sku
+- created_at
+
+---
+
+## Product Media Store
+
+Stores heavy media arrays separately:
+
+```go
+ProductMediaStore map[string]*ProductMedia
+```
+
+Contains:
+- image_urls
+- video_urls
+
+---
+
+## SKU Index
+
+Used for fast uniqueness validation:
+
+```go
+SKUIndex map[string]string
+```
+
+Maps:
+
+```text
+sku -> product_id
+```
+
+This provides:
+
+```text
+O(1)
+```
+
+duplicate SKU lookups.
+
+---
+
+## Product Order Store
+
+Maintains deterministic pagination order:
+
+```go
+ProductOrder []string
+```
+
+This avoids unstable ordering caused by Go map iteration.
+
+---
+
+# Why List vs Detail APIs Are Separate
+
+The assignment specifically requires:
+
+```text
+GET /products must not load or serialize all media URLs
+```
+
+To satisfy this efficiently:
+
+## GET /products
+
+Returns only lightweight fields:
+
+- id
+- name
+- sku
+- image_count
+- video_count
+- thumbnail_url
+- created_at
+
+This keeps list responses fast even with:
+- 1000+ products
+- thousands of stored media URLs
+
+The endpoint intentionally does NOT return:
+- image_urls arrays
+- video_urls arrays
+
+---
+
+## GET /products/{id}
+
+Returns the complete product including:
+- all image_urls
+- all video_urls
+
+This separation improves:
+- memory usage
+- response size
+- serialization performance
+- scalability
+
+---
+
+# Validation Rules
+
+The API enforces:
+
+| Validation | Rule |
+|---|---|
+| Product name | required, non-empty |
+| SKU | required, non-empty, unique |
+| URL scheme | must be http:// or https:// |
+| URL max length | 2048 characters |
+| Maximum URLs | 20 URLs per request array |
+
+---
+
+# Pagination
+
+GET /products supports:
+
+```http
+GET /products?limit=20&offset=0
+```
+
+Defaults:
+- limit = 20
+- offset = 0
+
+Maximum limit:
+- 100
+
+Pagination is deterministic using:
+
+```go
+ProductOrder []string
+```
+
+---
+
+# Concurrency Safety
+
+The implementation uses:
+
+```go
+sync.RWMutex
+```
+
+to protect:
+- product creation
+- media updates
+- concurrent reads/writes
+
+This prevents:
+- race conditions
+- duplicate SKU conflicts
+- concurrent map access issues
+
+---
+
+# Optional Dataset Seeding
+
+An optional seed utility is included:
+
+```go
+utils.SeedProducts(1000)
+```
+
+This can generate:
+- 1000 products
+- 10 image URLs per product
+
+Useful for testing list endpoint scalability.
+
+The seed utility is intentionally disabled by default.
+
+---
+
+# Example API Usage
+
+---
+
+## Create Product
+
+```bash
+curl -X POST http://localhost:8080/products \
+-H "Content-Type: application/json" \
+-d '{
+  "name":"Widget A",
+  "sku":"SKU-001",
+  "image_urls":[
+    "https://cdn.example.com/products/sku-001/img-1.jpg"
+  ],
+  "video_urls":[
+    "https://cdn.example.com/products/sku-001/demo.mp4"
+  ]
+}'
+```
+
+---
+
+## List Products
+
+```bash
+curl "http://localhost:8080/products?limit=20&offset=0"
+```
+
+---
+
+## Get Product Detail
+
+```bash
+curl http://localhost:8080/products/{id}
+```
+
+---
+
+## Add Product Media
+
+```bash
+curl -X POST http://localhost:8080/products/{id}/media \
+-H "Content-Type: application/json" \
+-d '{
+  "image_urls":[
+    "https://cdn.example.com/products/sku-001/img-2.jpg"
+  ]
+}'
+```
+
+---
+
+# Production Improvements (Future)
+
+For a real production deployment, the following improvements would be recommended:
+
+---
+
+## PostgreSQL
+
+Instead of in-memory maps:
+- products table
+- product_media table
+- indexed SKU column
+- indexed product_id foreign keys
+
+Benefits:
+- persistence
+- transactional consistency
+- scalable querying
+- indexing support
+
+---
+
+## Redis
+
+Could be used for:
+- distributed rate limiting
+- caching hot product lists
+- reducing database load
+
+---
+
+## CDN
+
+Media URLs would normally point to:
+- CloudFront
+- Cloudflare
+- Akamai
+- S3-backed CDN
+
+The backend would store only metadata and media references.
+
+---
+
+## Object Storage
+
+Images/videos would typically be stored in:
+- AWS S3
+- Google Cloud Storage
+- Azure Blob Storage
+
+instead of being managed directly by the API.
+
+---
+
+## Cursor-Based Pagination
+
+For very large datasets, offset pagination could be replaced with:
+- cursor pagination
+- keyset pagination
+
+for improved scalability.
+
+---
+
+# Assignment Notes
+
+- In-memory storage is intentionally used as allowed by the assignment
+- Persistence across restarts is not implemented
+- APIs are designed to prioritize clarity, scalability, and performance
