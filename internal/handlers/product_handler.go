@@ -111,12 +111,12 @@ func CreateProduct(c *gin.Context) {
 		Success: true,
 		Message: "product created successfully",
 		Data: gin.H{
-			"id":          product.ID,
-			"name":        product.Name,
-			"sku":         product.SKU,
-			"image_urls":  req.ImageURLs,
-			"video_urls":  req.VideoURLs,
-			"created_at":  product.CreatedAt,
+			"id":         product.ID,
+			"name":       product.Name,
+			"sku":        product.SKU,
+			"image_urls": req.ImageURLs,
+			"video_urls": req.VideoURLs,
+			"created_at": product.CreatedAt,
 		},
 	})
 }
@@ -252,19 +252,19 @@ func GetProductByID(c *gin.Context) {
 
 	// Build detail response
 	response := models.ProductDetailResponse{
-		ID:         product.ID,
-		Name:       product.Name,
-		SKU:        product.SKU,
-		ImageURLs:  media.ImageURLs,
-		VideoURLs:  media.VideoURLs,
-		CreatedAt:  product.CreatedAt,
+		ID:        product.ID,
+		Name:      product.Name,
+		SKU:       product.SKU,
+		ImageURLs: media.ImageURLs,
+		VideoURLs: media.VideoURLs,
+		CreatedAt: product.CreatedAt,
 	}
 
 	// Return response
 	c.JSON(http.StatusOK, models.SuccessResponse{
 		Success: true,
 		Message: "product fetched successfully",
-		Data:     response,
+		Data:    response,
 	})
 }
 
