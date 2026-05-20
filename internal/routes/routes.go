@@ -8,6 +8,13 @@ import (
 
 func RegisterRoutes(router *gin.Engine) {
 
+	router.GET("/", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"success": true,
+			"message": "Backend Assignment API is running",
+		})
+	})
+
 	// Part 1 routes
 	router.POST("/request", handlers.HandleRequest)
 	router.GET("/stats", handlers.GetStats)
