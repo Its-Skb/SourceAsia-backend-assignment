@@ -5,7 +5,7 @@ This repository contains the implementation for the Source Asia Backend Assignme
 The project is built using Go and Gin framework and includes:
 
 1. Part 1 - Rate Limited API
-2. Part 2 - Product Catalog API (to be implemented)
+2. Part 2 - Product Catalog API
 
 ---
 
