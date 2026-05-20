@@ -225,3 +225,44 @@ func GetProducts(c *gin.Context) {
 		},
 	})
 }
+
+func GetProductByID(c *gin.Context) {
+
+	// Get product ID from URL
+	productID := c.Param("id")
+
+	// Concurrency-safe read
+	storage.ProductMu.RLock()
+	defer storage.ProductMu.RUnlock()
+
+	// Check if product exists
+	product, exists := storage.Products[productID]
+
+	if !exists {
+		c.JSON(http.StatusNotFound, models.ErrorResponse{
+			Success: false,
+			Error:   "product not found",
+		})
+		return
+	}
+
+	// Get media data
+	media := storage.ProductMediaStore[productID]
+
+	// Build detail response
+	response := models.ProductDetailResponse{
+		ID:         product.ID,
+		Name:       product.Name,
+		SKU:        product.SKU,
+		ImageURLs:  media.ImageURLs,
+		VideoURLs:  media.VideoURLs,
+		CreatedAt:  product.CreatedAt,
+	}
+
+	// Return response
+	c.JSON(http.StatusOK, models.SuccessResponse{
+		Success: true,
+		Message: "product fetched successfully",
+		Data:     response,
+	})
+}
