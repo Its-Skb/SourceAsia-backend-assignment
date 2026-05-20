@@ -14,4 +14,5 @@ func RegisterRoutes(router *gin.Engine) {
 
 	// Part 2 routes
 	router.POST("/products", handlers.CreateProduct)
+	router.GET("/products", handlers.GetProducts)
 }

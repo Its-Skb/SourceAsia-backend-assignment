@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -113,6 +114,114 @@ func CreateProduct(c *gin.Context) {
 			"image_urls":  req.ImageURLs,
 			"video_urls":  req.VideoURLs,
 			"created_at":  product.CreatedAt,
+		},
+	})
+}
+
+func GetProducts(c *gin.Context) {
+
+	// Default pagination values
+	limit := 20
+	offset := 0
+
+	// Parse limit
+	if limitQuery := c.Query("limit"); limitQuery != "" {
+		parsedLimit, err := strconv.Atoi(limitQuery)
+
+		if err != nil || parsedLimit <= 0 {
+			c.JSON(http.StatusBadRequest, models.ErrorResponse{
+				Success: false,
+				Error:   "invalid limit parameter",
+			})
+			return
+		}
+
+		// Max limit protection
+		if parsedLimit > 100 {
+			parsedLimit = 100
+		}
+
+		limit = parsedLimit
+	}
+
+	// Parse offset
+	if offsetQuery := c.Query("offset"); offsetQuery != "" {
+		parsedOffset, err := strconv.Atoi(offsetQuery)
+
+		if err != nil || parsedOffset < 0 {
+			c.JSON(http.StatusBadRequest, models.ErrorResponse{
+				Success: false,
+				Error:   "invalid offset parameter",
+			})
+			return
+		}
+
+		offset = parsedOffset
+	}
+
+	// Read lock for concurrency-safe reads
+	storage.ProductMu.RLock()
+	defer storage.ProductMu.RUnlock()
+
+	// Convert map to slice
+	productIDs := make([]string, 0, len(storage.Products))
+
+	for productID := range storage.Products {
+		productIDs = append(productIDs, productID)
+	}
+
+	// Pagination bounds
+	start := offset
+
+	if start > len(productIDs) {
+		start = len(productIDs)
+	}
+
+	end := start + limit
+
+	if end > len(productIDs) {
+		end = len(productIDs)
+	}
+
+	paginatedIDs := productIDs[start:end]
+
+	// Build lightweight response
+	var products []models.ProductListItem
+
+	for _, productID := range paginatedIDs {
+
+		product := storage.Products[productID]
+		media := storage.ProductMediaStore[productID]
+
+		item := models.ProductListItem{
+			ID:         product.ID,
+			Name:       product.Name,
+			SKU:        product.SKU,
+			ImageCount: len(media.ImageURLs),
+			VideoCount: len(media.VideoURLs),
+			CreatedAt:  product.CreatedAt,
+		}
+
+		// Optional thumbnail URL
+		if len(media.ImageURLs) > 0 {
+			item.ThumbnailURL = media.ImageURLs[0]
+		}
+
+		products = append(products, item)
+	}
+
+	// Response
+	c.JSON(http.StatusOK, models.SuccessResponse{
+		Success: true,
+		Message: "products fetched successfully",
+		Data: gin.H{
+			"products": products,
+			"pagination": gin.H{
+				"limit":  limit,
+				"offset": offset,
+				"count":  len(products),
+				"total":  len(storage.Products),
+			},
 		},
 	})
 }
