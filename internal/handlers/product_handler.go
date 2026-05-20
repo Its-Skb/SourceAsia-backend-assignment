@@ -93,6 +93,9 @@ func CreateProduct(c *gin.Context) {
 	// Store product
 	storage.Products[productID] = product
 
+	// Maintain stable insertion order
+	storage.ProductOrder = append(storage.ProductOrder, productID)
+
 	// Store media separately
 	storage.ProductMediaStore[productID] = &models.ProductMedia{
 		ProductID: productID,
@@ -163,12 +166,8 @@ func GetProducts(c *gin.Context) {
 	storage.ProductMu.RLock()
 	defer storage.ProductMu.RUnlock()
 
-	// Convert map to slice
-	productIDs := make([]string, 0, len(storage.Products))
-
-	for productID := range storage.Products {
-		productIDs = append(productIDs, productID)
-	}
+	// Use stable insertion order
+	productIDs := storage.ProductOrder
 
 	// Pagination bounds
 	start := offset
@@ -183,7 +182,9 @@ func GetProducts(c *gin.Context) {
 		end = len(productIDs)
 	}
 
-	paginatedIDs := productIDs[start:end]
+	paginatedIDs := make([]string, end-start)
+
+	copy(paginatedIDs, productIDs[start:end])
 
 	// Build lightweight response
 	var products []models.ProductListItem

@@ -29,6 +29,9 @@ func main() {
 	// Register routes
 	routes.RegisterRoutes(router)
 
+	// Optional large dataset seeding
+	// utils.SeedProducts(1000)
+
 	// HTTP server configuration
 	server := &http.Server{
 		Addr:           ":8080",

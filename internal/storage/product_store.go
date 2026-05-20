@@ -7,6 +7,7 @@ import (
 )
 
 var (
+
 	// Product metadata storage
 	Products = make(map[string]*models.Product)
 
@@ -15,6 +16,9 @@ var (
 
 	// SKU uniqueness index
 	SKUIndex = make(map[string]string)
+
+	// Stable insertion order for pagination
+	ProductOrder []string
 
 	// Concurrency safety
 	ProductMu sync.RWMutex
