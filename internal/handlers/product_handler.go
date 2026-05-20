@@ -266,3 +266,84 @@ func GetProductByID(c *gin.Context) {
 		Data:     response,
 	})
 }
+
+func AddProductMedia(c *gin.Context) {
+
+	// Get product ID
+	productID := c.Param("id")
+
+	var req models.AddMediaRequest
+
+	// Validate JSON body
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Success: false,
+			Error:   "invalid JSON body",
+		})
+		return
+	}
+
+	// Validate at least one array exists
+	if len(req.ImageURLs) == 0 && len(req.VideoURLs) == 0 {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Success: false,
+			Error:   "at least one of image_urls or video_urls is required",
+		})
+		return
+	}
+
+	// Validate image URLs
+	if err := validators.ValidateURLs(req.ImageURLs); err != nil {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Success: false,
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	// Validate video URLs
+	if err := validators.ValidateURLs(req.VideoURLs); err != nil {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Success: false,
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	// Concurrency-safe write
+	storage.ProductMu.Lock()
+	defer storage.ProductMu.Unlock()
+
+	// Check if product exists
+	product, exists := storage.Products[productID]
+
+	if !exists {
+		c.JSON(http.StatusNotFound, models.ErrorResponse{
+			Success: false,
+			Error:   "product not found",
+		})
+		return
+	}
+
+	// Get media store
+	media := storage.ProductMediaStore[productID]
+
+	// Append image URLs
+	media.ImageURLs = append(media.ImageURLs, req.ImageURLs...)
+
+	// Append video URLs
+	media.VideoURLs = append(media.VideoURLs, req.VideoURLs...)
+
+	// Response
+	c.JSON(http.StatusOK, models.SuccessResponse{
+		Success: true,
+		Message: "media added successfully",
+		Data: gin.H{
+			"id":          product.ID,
+			"name":        product.Name,
+			"sku":         product.SKU,
+			"image_count": len(media.ImageURLs),
+			"video_count": len(media.VideoURLs),
+		},
+	})
+}

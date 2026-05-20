@@ -16,4 +16,5 @@ func RegisterRoutes(router *gin.Engine) {
 	router.POST("/products", handlers.CreateProduct)
 	router.GET("/products", handlers.GetProducts)
 	router.GET("/products/:id", handlers.GetProductByID)
+	router.POST("/products/:id/media", handlers.AddProductMedia)
 }
